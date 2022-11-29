@@ -1,0 +1,6 @@
+.env
+*.session
+
+media
+telegram-image-downloader
+
