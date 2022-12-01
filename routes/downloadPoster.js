@@ -2,9 +2,9 @@ var express = require("express");
 var router = express.Router();
 var downloader = require("../utility/downloader");
 
-/* GET users listing. */
-router.get("/", async function (req, res, next) {
-  const result = await downloader();
+/* POST download poster. */
+router.post("/", async function (req, res, next) {
+  const result = await downloader(req.body.startDate, req.body.endDate);
   res.send(result);
 });
 

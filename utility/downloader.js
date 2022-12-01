@@ -4,7 +4,7 @@ const { readFileSync } = require("fs");
 const input = require("input");
 const fs = require("fs-extra");
 
-require('dotenv').config()
+require("dotenv").config();
 
 const apiId = parseInt(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
@@ -19,17 +19,23 @@ try {
 }
 const stringSession = new StringSession(session);
 
-async function downloadPoster() {
+async function downloadPoster(startDateString, endDateString) {
   const client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
   });
-  await client.start({
-    phoneNumber: async () => await input.text("Please enter your number: "),
-    password: async () => await input.text("Please enter your password: "),
-    phoneCode: async () =>
-      await input.text("Please enter the code you received: "),
-    onError: (err) => console.log(err),
-  });
+  try {
+    await client.start({
+      phoneNumber: async () => await input.text("Please enter your number: "),
+      password: async () => await input.text("Please enter your password: "),
+      phoneCode: async () =>
+        await input.text("Please enter the code you received: "),
+      onError: (err) => {
+        throw err;
+      },
+    });
+  } catch (err) {
+    return err;
+  }
 
   if (!session) {
     fs.outputFile(`./session/app.session`, client.session.save(), (err) =>
@@ -37,34 +43,40 @@ async function downloadPoster() {
     );
   }
 
-  const startDate = new Date("2022/11/23").valueOf() / 1000;
-  const endDate = new Date("2022/11/30").valueOf() / 1000;
+  const startDate =
+    new Date(startDateString).setHours(0, 0, 0, 0).valueOf() / 1000;
+  const endDateTemp = new Date(endDateString);
+  const endDate =
+    new Date(endDateTemp.setDate(endDateTemp.getDate() + 1))
+      .setHours(0, 0, 0, 0)
+      .valueOf() / 1000;
 
-  for await (const message of client.iterMessages(parseInt(process.env.TELEGRAM_GROUP_CHAT_ID), {
-    reverse: true,
-    offsetDate: startDate,
-  })) {
-    if (message?.date > endDate) {
-      break;
-    }
-    if (message?.media?.photo) {
-      if (message.groupedId) {
+  try {
+    for await (const message of client.iterMessages(
+      parseInt(process.env.TELEGRAM_GROUP_CHAT_ID),
+      {
+        reverse: true,
+        offsetDate: startDate,
+      }
+    )) {
+      if (message?.date > endDate) {
+        break;
+      }
+      if (message?.media?.photo) {
         const buffer = await client.downloadMedia(message.media, {});
-        fs.outputFile(
-          `./media/${message.groupedId}/photo_${message.media.photo.id}.jpg`,
-          buffer,
-          (err) => (err ? console.log(err) : "")
-        );
-      } else {
-        const buffer = await client.downloadMedia(message.media, {});
-        fs.outputFile(
-          `./media/photo_${message.media.photo.id}.jpg`,
-          buffer,
-          (err) => (err ? console.log(err) : "")
-        );
+        let filePath;
+        if (message.groupedId) {
+          filePath = `./media/${message.groupedId}/photo_${message.media.photo.id}.jpg`;
+        } else {
+          filePath = `./media/photo_${message.media.photo.id}.jpg`;
+        }
+        fs.outputFile(filePath, buffer, (err) => (err ? console.log(err) : ""));
       }
     }
+  } catch (err) {
+    return err;
   }
+
   return "download poster success";
 }
 
