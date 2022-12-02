@@ -11,3 +11,9 @@ DEBUG=loker-it-backend:* npm start
 npm install
 set DEBUG=loker-it-backend:* & npm start
 ```
+
+# Setup Database
+
+```
+PGPASSWORD=postgres psql -U postgres -a -f init.sql
+```
