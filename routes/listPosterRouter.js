@@ -4,7 +4,7 @@ var listPoster = require("../utility/listPoster");
 
 /* GET list poster. */
 router.get("/", async function (req, res) {
-  const result = await listPoster();
+  const result = listPoster();
   res.send(result);
 });
 
