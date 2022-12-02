@@ -51,6 +51,8 @@ async function downloadPoster(startDateString, endDateString) {
       .setHours(0, 0, 0, 0)
       .valueOf() / 1000;
 
+  const BASE_PATH = './public/media';
+
   try {
     for await (const message of client.iterMessages(
       parseInt(process.env.TELEGRAM_GROUP_CHAT_ID),
@@ -66,9 +68,9 @@ async function downloadPoster(startDateString, endDateString) {
         const buffer = await client.downloadMedia(message.media, {});
         let filePath;
         if (message.groupedId) {
-          filePath = `./media/${message.groupedId}/photo_${message.media.photo.id}.jpg`;
+          filePath = `${BASE_PATH}/${message.groupedId}/photo_${message.media.photo.id}.jpg`;
         } else {
-          filePath = `./media/photo_${message.media.photo.id}.jpg`;
+          filePath = `${BASE_PATH}/photo_${message.media.photo.id}.jpg`;
         }
         fs.outputFile(filePath, buffer, (err) => (err ? console.log(err) : ""));
       }
