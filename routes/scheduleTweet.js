@@ -190,13 +190,12 @@ async function scheduleTweet(startDateString, endDateString) {
   const endDate = new Date(endDateString);
 
   const checkpoint = await getTweetsCheckpoint();
-
-  // get lastPostedDate & get lastImage
   let lastPostedDate = new Date(checkpoint.tweet_checkpoint_last_posted_date);
   let lastImageId = checkpoint.tweet_checkpoint_last_posted_image;
-  let successCount = 0;
 
   const tweetsNeeded = countTweetsNeeded(startDate, endDate);
+  let successCount = 0;
+
   for (let i = 0; i < tweetsNeeded; i++) {
     const poster = await getNextPoster(lastImageId);
     if (!poster) {
