@@ -1,7 +1,7 @@
 var express = require("express");
+const pgp = require("pg-promise")();
 const db = require("../utility/postgres");
 var router = express.Router();
-const fs = require("fs");
 const { differenceInCalendarDays } = require("date-fns");
 
 const POST_PER_DAY = 3;
@@ -78,7 +78,12 @@ function countTweetsNeeded(startDate, endDate) {
 }
 
 async function getNextPoster(lastImageId) {
-  const query = `SELECT * FROM posters WHERE poster_id = '${lastImageId}' LIMIT 1`;
+  const query = `SELECT d1.* FROM
+                  (SELECT Row_Number() over (order by poster_message_date) AS RowIndex, * from posters) AS d1 
+                  INNER JOIN 
+                  (SELECT Row_Number() over (order by poster_message_date) AS RowIndex, * from posters) AS d2 
+                  ON (d2.poster_id  = '${lastImageId}' and d1.RowIndex > d2.RowIndex) 
+                  limit 1`;
   const poster = await db
     .one(query)
     .then((result) => {
@@ -88,14 +93,7 @@ async function getNextPoster(lastImageId) {
       console.log("Error get next poster:", error);
     });
 
-  const file = fs.readFileSync(poster.poster_image_path, { encoding: "utf8" });
-  return {
-    poster_id: poster.poster_id,
-    poster_image_path: poster.poster_image_path,
-    poster_message_date: poster.poster_message_date,
-    poster_created_date: poster.poster_created_date,
-    poster_file: file,
-  };
+  return poster;
 }
 
 function isPosterValid(poster) {
@@ -143,8 +141,8 @@ function getCaption() {
 async function schedulePostTweet(poster, caption, postDateTime) {
   return await db
     .none(
-      "insert into tweets(tweet_poster_id, tweet_caption_text, tweet_scheduled_date) VALUES($1, $2, $3)" + 
-      " on conflict(tweet_poster_id) do nothing",
+      "insert into tweets(tweet_poster_id, tweet_caption_text, tweet_scheduled_date) VALUES($1, $2, $3)" +
+        " on conflict(tweet_poster_id) do nothing",
       [poster, caption, postDateTime]
     )
     .then(() => {
@@ -155,8 +153,23 @@ async function schedulePostTweet(poster, caption, postDateTime) {
     });
 }
 
-function updateLastPostedDate() {
-  return "success";
+async function updateCheckpoint(id, lastImageId, lastPostedDate) {
+  const query = pgp.helpers.update(
+    {
+      tweet_checkpoint_id: id,
+      tweet_checkpoint_last_posted_image: lastImageId,
+      tweet_checkpoint_last_posted_date: lastPostedDate,
+    },
+    null,
+    "tweets_checkpoint"
+  );
+  db.none(query)
+    .then(() => {
+      console.log("Update checkpoint success");
+    })
+    .catch((error) => {
+      console.log("Error updating checkpoint:", error);
+    });
 }
 
 async function getTweetsCheckpoint() {
@@ -202,10 +215,15 @@ async function scheduleTweet(startDateString, endDateString) {
     }
   }
 
-  updateLastPostedDate(lastPostedDate, lastImageId);
+  await updateCheckpoint(
+    checkpoint.tweet_checkpoint_id,
+    lastImageId,
+    lastPostedDate
+  );
 
   return {
-    message: successCount > 0 ? "schedule tweet success" : "schedule tweet failed",
+    message:
+      successCount > 0 ? "schedule tweet success" : "schedule tweet failed",
     successCount: successCount,
     lastPostedDate: lastPostedDate,
   };
