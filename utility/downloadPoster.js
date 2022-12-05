@@ -3,6 +3,10 @@ const { StringSession } = require("telegram/sessions");
 const { readFileSync } = require("fs");
 const input = require("input");
 const fs = require("fs-extra");
+const pgp = require("pg-promise")({
+  capSQL: true, // capitalize all generated SQL
+});
+const db = require("../utility/postgres");
 
 require("dotenv").config();
 
@@ -18,6 +22,33 @@ try {
   console.log(e?.message);
 }
 const stringSession = new StringSession(session);
+
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0, len = str.length; i < len; i++) {
+    let chr = str.charCodeAt(i);
+    hash = (hash << 5) - hash + chr;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return hash;
+}
+
+async function insertPosterToDB(posters) {
+  const cs = new pgp.helpers.ColumnSet(
+    ["poster_id", "poster_image_path", "poster_message_date"],
+    { table: "posters" }
+  );
+  const values = posters;
+  const query = pgp.helpers.insert(values, cs) + " ON CONFLICT(poster_id) DO NOTHING";
+
+  db.none(query)
+    .then(() => {
+      console.log("Insert posters to DB success");
+    })
+    .catch((error) => {
+      console.log("Error inserting posters to DB:", error);
+    });
+}
 
 async function downloadPoster(startDateString, endDateString) {
   const client = new TelegramClient(stringSession, apiId, apiHash, {
@@ -51,7 +82,8 @@ async function downloadPoster(startDateString, endDateString) {
       .setHours(0, 0, 0, 0)
       .valueOf() / 1000;
 
-  const BASE_PATH = './public/media';
+  const BASE_PATH = "./public/media";
+  const posters = [];
 
   try {
     for await (const message of client.iterMessages(
@@ -72,9 +104,20 @@ async function downloadPoster(startDateString, endDateString) {
         } else {
           filePath = `${BASE_PATH}/photo_${message.media.photo.id}.jpg`;
         }
-        fs.outputFile(filePath, buffer, (err) => (err ? console.log(err) : ""));
+        fs.outputFile(filePath, buffer, (err) =>
+          err
+            ? console.log(err)
+            : posters.push({
+                poster_id: hashCode(filePath),
+                poster_image_path: filePath,
+                poster_message_date: new Date(
+                  message.date * 1000
+                ).toISOString(),
+              })
+        );
       }
     }
+    insertPosterToDB(posters);
   } catch (err) {
     return err;
   }
