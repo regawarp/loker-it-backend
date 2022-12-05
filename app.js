@@ -8,6 +8,7 @@ const cors = require("cors");
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var captionsRouter = require('./routes/captions');
+var tweetsRouter = require('./routes/tweets');
 var downloadPosterRouter = require('./routes/downloadPosterRouter');
 var listPosterRouter = require('./routes/listPosterRouter');
 
@@ -31,6 +32,7 @@ app.use(
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/captions', captionsRouter);
+app.use('/tweets', tweetsRouter);
 app.use('/download-poster', downloadPosterRouter);
 app.use('/poster', listPosterRouter);
 
