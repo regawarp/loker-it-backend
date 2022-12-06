@@ -105,7 +105,7 @@ function isPosterValid(poster) {
 }
 
 function getSchedule(lastPostedDate, startDate) {
-  let hour = lastPostedDate.getHours();
+  const hour = lastPostedDate.getHours();
   if (hour === 8) {
     lastPostedDate.setHours(
       12,
