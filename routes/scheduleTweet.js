@@ -222,8 +222,11 @@ async function scheduleTweet(startDateString, endDateString) {
 
   return {
     message:
-      successCount > 0 ? "schedule tweet success" : "schedule tweet failed",
+      successCount === tweetsNeeded
+        ? "schedule tweet success"
+        : "schedule tweet failed",
     successCount: successCount,
+    tweetsNeeded: tweetsNeeded,
     lastPostedDate: lastPostedDate,
   };
 }
