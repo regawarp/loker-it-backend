@@ -78,12 +78,16 @@ function countTweetsNeeded(startDate, endDate) {
 }
 
 async function getNextPoster(lastImageId) {
-  const query = `SELECT d1.* FROM
+  const query =
+    lastImageId && lastImageId !== ""
+      ? `SELECT d1.* FROM
                   (SELECT Row_Number() over (order by poster_message_date) AS RowIndex, * from posters) AS d1 
                   INNER JOIN 
                   (SELECT Row_Number() over (order by poster_message_date) AS RowIndex, * from posters) AS d2 
                   ON (d2.poster_id  = '${lastImageId}' and d1.RowIndex > d2.RowIndex) 
-                  limit 1`;
+                  limit 1`
+      : "select * from posters p order by poster_message_date limit 1";
+
   const poster = await db
     .one(query)
     .then((result) => {
@@ -100,8 +104,8 @@ function isPosterValid(poster) {
   return true;
 }
 
-function getSchedule(lastPostedDate) {
-  var hour = lastPostedDate.getHours();
+function getSchedule(lastPostedDate, startDate) {
+  const hour = lastPostedDate.getHours();
   if (hour === 8) {
     lastPostedDate.setHours(
       12,
@@ -131,7 +135,44 @@ function getSchedule(lastPostedDate) {
       );
       return lastPostedDate;
     }
+  } else if (POST_PER_DAY === 4) {
+    if (hour === 12) {
+      lastPostedDate.setHours(
+        16,
+        randomIntFromInterval(1, 10),
+        randomIntFromInterval(1, 10),
+        0
+      );
+      return lastPostedDate;
+    }
+    if (hour === 16) {
+      lastPostedDate.setHours(
+        18,
+        30 + randomIntFromInterval(1, 10),
+        randomIntFromInterval(1, 10),
+        0
+      );
+      return lastPostedDate;
+    }
+    if (hour === 18) {
+      lastPostedDate.setDate(lastPostedDate.getDate() + 1);
+      lastPostedDate.setHours(
+        8,
+        randomIntFromInterval(1, 10),
+        randomIntFromInterval(1, 10),
+        0
+      );
+      return lastPostedDate;
+    }
   }
+
+  startDate.setHours(
+    8,
+    randomIntFromInterval(1, 10),
+    randomIntFromInterval(1, 10),
+    0
+  );
+  return startDate;
 }
 
 function getCaption() {
@@ -190,7 +231,9 @@ async function scheduleTweet(startDateString, endDateString) {
   const endDate = new Date(endDateString);
 
   const checkpoint = await getTweetsCheckpoint();
-  let lastPostedDate = new Date(checkpoint.tweet_checkpoint_last_posted_date);
+  let lastPostedDate = checkpoint.tweet_checkpoint_last_posted_date
+    ? new Date(checkpoint.tweet_checkpoint_last_posted_date)
+    : startDate;
   let lastImageId = checkpoint.tweet_checkpoint_last_posted_image;
 
   const tweetsNeeded = countTweetsNeeded(startDate, endDate);
@@ -204,7 +247,7 @@ async function scheduleTweet(startDateString, endDateString) {
     if (!isPosterValid(poster)) {
       continue;
     }
-    const schedule = getSchedule(lastPostedDate);
+    const schedule = getSchedule(lastPostedDate, startDate);
     if (schedule > endDate) {
       break;
     }
