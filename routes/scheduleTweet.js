@@ -186,7 +186,7 @@ async function getTweetsCheckpoint() {
 
 /* Schedule a Tweet */
 async function scheduleTweet(startDateString, endDateString) {
-  let startDate = new Date(startDateString);
+  const startDate = new Date(startDateString);
   const endDate = new Date(endDateString);
 
   const checkpoint = await getTweetsCheckpoint();
@@ -205,6 +205,9 @@ async function scheduleTweet(startDateString, endDateString) {
       continue;
     }
     const schedule = getSchedule(lastPostedDate);
+    if (schedule > endDate) {
+      break;
+    }
     const caption = getCaption(poster);
     const result = await schedulePostTweet(poster.poster_id, caption, schedule);
     if (result === "success") {
