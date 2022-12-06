@@ -1,6 +1,6 @@
 .env
 
-session
+session/**.session
 public/media
 telegram-image-downloader
 posted_images/**.jpg

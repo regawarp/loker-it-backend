@@ -3,7 +3,10 @@ DROP DATABASE IF EXISTS loker_it;
 CREATE DATABASE loker_it;
 \c loker_it
 
-DROP TABLE IF EXISTS captions;
+DROP TABLE IF EXISTS captions cascade;
+DROP TABLE IF EXISTS posters cascade;
+DROP TABLE IF EXISTS tweets cascade;
+DROP TABLE IF EXISTS tweets_checkpoint cascade;
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -17,3 +20,70 @@ INSERT INTO
 VALUES
     ('caption 0001'),
     ('caption 0002');
+
+CREATE TABLE posters (
+    poster_id text PRIMARY KEY,
+    poster_image_path text NOT NULL,
+    poster_message_date timestamptz not null,
+    poster_created_date timestamptz not null default now()
+);
+
+create unique index poster_id on posters (
+    poster_id
+);
+
+INSERT INTO
+    posters (poster_id, poster_image_path, poster_message_date)
+VALUES
+    ('hash-poster-1', './public/media/SaulGoodman1.png', '2022-12-01T07:16:09.117Z'),
+    ('hash-poster-2', './public/media/SaulGoodman2.png', '2022-12-01T07:16:09.117Z');
+
+CREATE TABLE tweets (
+    tweet_id uuid DEFAULT uuid_generate_v4(),
+    tweet_poster_id text NOT NULL,
+    tweet_caption_text text NOT NULL,
+    tweet_scheduled_date timestamptz not null,
+    tweet_created_date timestamptz not null default now(),
+    constraint pk_tweets primary key (tweet_id, tweet_poster_id)
+);
+
+create unique index tweets_pk on tweets (
+    tweet_id,
+    tweet_poster_id
+);
+
+create unique index tweets_fk on tweets (
+    tweet_poster_id
+);
+
+alter table tweets
+    add constraint fk_tweets_relations_poster foreign key (tweet_poster_id)
+        references posters (poster_id)
+        on delete restrict on update restrict;
+
+INSERT INTO
+    tweets (tweet_poster_id, tweet_caption_text, tweet_scheduled_date)
+VALUES
+    ('hash-poster-1', 'caption 0001', '2022-12-01T07:16:09.117Z'),
+    ('hash-poster-2', 'caption 0002', '2022-12-01T07:16:09.117Z');
+
+CREATE TABLE tweets_checkpoint (
+    tweet_checkpoint_id uuid DEFAULT uuid_generate_v4(),
+    tweet_checkpoint_last_posted_image text not null,
+    tweet_checkpoint_last_posted_date timestamptz not null,
+    constraint pk_tweets_checkpoint primary key (tweet_checkpoint_id, tweet_checkpoint_last_posted_image)
+);
+
+create unique index tweet_checkpoint_pk on tweets_checkpoint (
+    tweet_checkpoint_id,
+    tweet_checkpoint_last_posted_image
+);
+
+create unique index tweet_checkpoint_fk on tweets_checkpoint (
+    tweet_checkpoint_last_posted_image
+);
+
+INSERT INTO
+    tweets_checkpoint (tweet_checkpoint_last_posted_date, tweet_checkpoint_last_posted_image)
+VALUES
+    ('2022-12-01T07:16:09.117Z', 'hash-poster-1');
