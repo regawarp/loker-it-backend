@@ -14,7 +14,7 @@ const apiId = parseInt(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 let session;
 try {
-  session = readFileSync("./session/app.session", {
+  session = readFileSync(`./session/${process.env.TELEGRAM_SESSION_NAME}.session`, {
     encoding: "utf8",
     flag: "r",
   });
@@ -34,6 +34,9 @@ function hashCode(str) {
 }
 
 async function insertPosterToDB(posters) {
+  if (posters?.length === 0) {
+    return;
+  }
   const cs = new pgp.helpers.ColumnSet(
     ["poster_id", "poster_image_path", "poster_message_date"],
     { table: "posters" }
@@ -69,7 +72,7 @@ async function downloadPoster(startDateString, endDateString) {
   }
 
   if (!session) {
-    fs.outputFile(`./session/app.session`, client.session.save(), (err) =>
+    fs.outputFile(`./session/${process.env.TELEGRAM_SESSION_NAME}.session`, client.session.save(), (err) =>
       err ? console.log(err) : ""
     );
   }
