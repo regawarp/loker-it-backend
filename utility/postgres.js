@@ -1,4 +1,8 @@
-const pgp = require('pg-promise')();
-const db = pgp('postgres://postgres:postgres@localhost:5432/loker_it');
+require("dotenv").config();
+
+const pgp = require("pg-promise")();
+const db = pgp(
+  `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`
+);
 
 module.exports = db;
