@@ -29,37 +29,58 @@ async function downloadImage(imageUrl, filepath) {
 }
 
 /* Post a Tweet with Given Image and Caption. */
-function postTweet(imagePath, caption) {
-    var data = require('fs').readFileSync(imagePath);
-    twitterClient.post('media/upload', { media: data }, function (error, media, response) {
-        if (!error) {
-            console.log(media);
-            var status = {
-                status: caption,
-                media_ids: media.media_id_string + ',' + media.media_id_string
-            }
-            twitterClient.post('statuses/update', status, function (error, tweet, response) {
-                if (!error) {
-                    console.log(tweet);
+function postTweet(imagePaths, caption) {
+    let image_ids = []
+    for (let i = 0; i < imagePaths.length; i++) {
+        var image = require('fs').readFileSync(imagePaths[i]);
+        twitterClient.post('media/upload', { media: image }, function (error, media, response) {
+            if (!error) {
+                // console.log(media);
+                image_ids.push(media.media_id_string);
+                if (image_ids.length == imagePaths.length) {
+                    const status = {
+                        status: caption,
+                        media_ids: image_ids.join(','),
+                    }
+                    twitterClient.post('statuses/update', status, function (error, tweet, response) {
+                        if (!error) {
+                            // console.log(tweet);
+                            return null;
+                        }
+                        else {
+                            return error;
+                        }
+                    });
                 }
-            });
-        }
-    });
+            }
+            else {
+                return error;
+            }
+        });
+    }
 }
 
 /* Post a Tweet. */
 router.post('/', async function (req, res, next) {
-    const imagePath = 'posted_images/' + Date.now() + '.jpg';
-    await downloadImage(req.body.image, imagePath).then(
-        (result) => {
-            postTweet(imagePath, req.body.caption);
-            res.send('success!');
-        },
-        (error) => {
-            console.log('Error :', error);
-            res.send('failed!');
-        }
-    );
+    let imagePaths = [];
+    for (let i = 0; i < req.body.images.length; i++) {
+        const imagePath = 'posted_images/' + Date.now() + '.jpg';
+        await downloadImage(req.body.images[i], imagePath).then(
+            (result) => {
+                imagePaths.push(imagePath);
+            },
+            (error) => {
+                console.log('Error :', error);
+                res.send('failed!');
+                return;
+            }
+        );
+    }
+
+    const error = postTweet(imagePaths, req.body.caption);
+    if (!error) res.send('success!');
+    else res.send('failed!');
+    return;
 });
 
 module.exports = router;
