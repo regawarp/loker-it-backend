@@ -23,12 +23,14 @@ VALUES
 
 CREATE TABLE posters (
     poster_id text PRIMARY KEY,
+    poster_tweet_id uuid NULL,
     poster_image_path text NOT NULL,
+    poster_group text NULL,
     poster_message_date timestamptz not null,
     poster_created_date timestamptz not null default now()
 );
 
-create unique index poster_id on posters (
+create unique index poster_pk on posters (
     poster_id
 );
 
@@ -40,32 +42,25 @@ VALUES
 
 CREATE TABLE tweets (
     tweet_id uuid DEFAULT uuid_generate_v4(),
-    tweet_poster_id text NOT NULL,
     tweet_caption_text text NOT NULL,
     tweet_scheduled_date timestamptz not null,
     tweet_created_date timestamptz not null default now(),
-    constraint pk_tweets primary key (tweet_id, tweet_poster_id)
+    constraint pk_tweets primary key (tweet_id)
 );
 
 create unique index tweets_pk on tweets (
-    tweet_id,
-    tweet_poster_id
+    tweet_id
 );
-
-create unique index tweets_fk on tweets (
-    tweet_poster_id
-);
-
-alter table tweets
-    add constraint fk_tweets_relations_poster foreign key (tweet_poster_id)
-        references posters (poster_id)
-        on delete restrict on update restrict;
-
 INSERT INTO
-    tweets (tweet_poster_id, tweet_caption_text, tweet_scheduled_date)
+    tweets (tweet_caption_text, tweet_scheduled_date)
 VALUES
-    ('hash-poster-1', 'caption 0001', '2022-12-01T07:16:09.117Z'),
-    ('hash-poster-2', 'caption 0002', '2022-12-01T07:16:09.117Z');
+    ('caption 0001', '2022-12-01T07:16:09.117Z'),
+    ('caption 0002', '2022-12-01T07:16:09.117Z');
+
+alter table posters
+    add constraint fk_posters_relations_tweets foreign key (poster_tweet_id)
+        references tweets (tweet_id)
+        on delete restrict on update restrict;
 
 CREATE TABLE tweets_checkpoint (
     tweet_checkpoint_id uuid DEFAULT uuid_generate_v4(),
