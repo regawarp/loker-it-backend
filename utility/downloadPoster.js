@@ -38,7 +38,7 @@ async function insertPosterToDB(posters) {
     return;
   }
   const cs = new pgp.helpers.ColumnSet(
-    ["poster_id", "poster_image_path", "poster_message_date"],
+    ["poster_id", "poster_image_path", "poster_group", "poster_message_date"],
     { table: "posters" }
   );
   const values = posters;
@@ -87,6 +87,7 @@ async function downloadPoster(startDateString, endDateString) {
 
   const BASE_PATH = "./public/media";
   const posters = [];
+  let seconds = 0;
 
   try {
     for await (const message of client.iterMessages(
@@ -113,12 +114,14 @@ async function downloadPoster(startDateString, endDateString) {
             : posters.push({
                 poster_id: hashCode(filePath),
                 poster_image_path: filePath,
+                poster_group: message?.groupedId?.toString(),
                 poster_message_date: new Date(
-                  message.date * 1000
+                  message.date * 1000 + seconds * 1000
                 ).toISOString(),
               })
         );
       }
+      seconds++;
     }
     insertPosterToDB(posters);
   } catch (err) {

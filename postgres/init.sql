@@ -25,16 +25,13 @@ CREATE TABLE posters (
     poster_id text PRIMARY KEY,
     poster_tweet_id uuid NULL,
     poster_image_path text NOT NULL,
+    poster_group text NULL,
     poster_message_date timestamptz not null,
     poster_created_date timestamptz not null default now()
 );
 
 create unique index poster_pk on posters (
     poster_id
-);
-
-create unique index poster_fk on posters (
-    poster_tweet_id
 );
 
 INSERT INTO

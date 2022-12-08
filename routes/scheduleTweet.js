@@ -100,6 +100,21 @@ async function getNextPoster(lastImageId) {
   return poster;
 }
 
+async function getPostersWithSameGroup(group) {
+  const query = `select * from posters where poster_group = '${group}'`;
+
+  const posters = await db
+    .many(query)
+    .then((result) => {
+      return result;
+    })
+    .catch((error) => {
+      console.log("Error get next poster:", error);
+    });
+
+  return posters;
+}
+
 function isPosterValid(poster) {
   return true;
 }
@@ -175,7 +190,7 @@ function getSchedule(lastPostedDate, startDate) {
   return startDate;
 }
 
-function getCaption() {
+function getCaption(poster, group = false) {
   return "sample caption";
 }
 
@@ -187,10 +202,10 @@ async function schedulePostTweet(poster, caption, postDateTime) {
     )
     .then(async (tweet) => {
       return await db
-        .none(
-          "UPDATE posters SET poster_tweet_id = $1 WHERE poster_id = $2",
-          [tweet?.tweet_id, poster]
-        )
+        .none("UPDATE posters SET poster_tweet_id = $1 WHERE poster_id = $2", [
+          tweet?.tweet_id,
+          poster,
+        ])
         .then(() => {
           return "success";
         })
@@ -252,25 +267,80 @@ async function scheduleTweet(startDateString, endDateString) {
   let endScheduleDate = endDate;
   endScheduleDate.setHours(endScheduleDate.getHours() + 1);
 
+  let poster;
   for (let i = 0; i < tweetsNeeded; i++) {
-    const poster = await getNextPoster(lastImageId);
+    poster = await getNextPoster(lastImageId);
     if (!poster) {
       break;
     }
-    if (!isPosterValid(poster)) {
-      continue;
+    if (poster.poster_group) {
+      const posters = await getPostersWithSameGroup(poster.poster_group);
+      let schedule = getSchedule(lastPostedDate, startDate);
+      if (schedule > endScheduleDate) {
+        break;
+      }
+      let successChunk = 0;
+      const chunkSize = 4;
+      for (let i = 0; i < posters.length; i += chunkSize) {
+        schedule.setMinutes(schedule.getMinutes() + 4);
+        const chunkPosters = posters.slice(i, i + chunkSize);
+        const caption = getCaption(posters, true);
+        const tweet = await db
+          .one(
+            "insert into tweets(tweet_caption_text, tweet_scheduled_date) VALUES($1, $2) RETURNING tweet_id",
+            [caption, schedule]
+          )
+          .then((tweet) => tweet)
+          .catch((error) => {
+            console.log("Error schedule tweet (table tweet):", error);
+          });
+
+        for (let j = 0; j < chunkPosters.length; j++) {
+          if (!isPosterValid(chunkPosters[j])) {
+            continue;
+          }
+          const result = await db
+            .none(
+              "UPDATE posters SET poster_tweet_id = $1 WHERE poster_id = $2",
+              [tweet?.tweet_id, chunkPosters[j]?.poster_id]
+            )
+            .then(() => {
+              return "success";
+            })
+            .catch((error) => {
+              console.log("Error schedule tweet (table poster):", error);
+            });
+          if (result === "success") {
+            successChunk++;
+          }
+        }
+      }
+      if (successChunk === posters.length) {
+        lastPostedDate = schedule;
+        lastImageId = posters[posters.length - 1].poster_id;
+        successCount++;
+      }
+    } else {
+      if (!isPosterValid(poster)) {
+        continue;
+      }
+      const schedule = getSchedule(lastPostedDate, startDate);
+      if (schedule > endScheduleDate) {
+        break;
+      }
+      const caption = getCaption(poster);
+      const result = await schedulePostTweet(
+        poster.poster_id,
+        caption,
+        schedule
+      );
+      if (result === "success") {
+        lastPostedDate = schedule;
+        lastImageId = poster.poster_id;
+        successCount++;
+      }
     }
-    const schedule = getSchedule(lastPostedDate, startDate);
-    if (schedule > endScheduleDate) {
-      break;
-    }
-    const caption = getCaption(poster);
-    const result = await schedulePostTweet(poster.poster_id, caption, schedule);
-    if (result === "success") {
-      lastPostedDate = schedule;
-      lastImageId = poster.poster_id;
-      successCount++;
-    }
+    poster = null;
   }
 
   await updateCheckpoint(
