@@ -180,18 +180,28 @@ function getCaption() {
 }
 
 async function schedulePostTweet(poster, caption, postDateTime) {
-  return await db
-    .none(
-      "insert into tweets(tweet_poster_id, tweet_caption_text, tweet_scheduled_date) VALUES($1, $2, $3)" +
-        " on conflict(tweet_poster_id) do nothing",
-      [poster, caption, postDateTime]
+  const result = await db
+    .one(
+      "insert into tweets(tweet_caption_text, tweet_scheduled_date) VALUES($1, $2) RETURNING tweet_id",
+      [caption, postDateTime]
     )
-    .then(() => {
-      return "success";
+    .then(async (tweet) => {
+      return await db
+        .none(
+          "UPDATE posters SET poster_tweet_id = $1 WHERE poster_id = $2",
+          [tweet?.tweet_id, poster]
+        )
+        .then(() => {
+          return "success";
+        })
+        .catch((error) => {
+          console.log("Error schedule tweet (table poster):", error);
+        });
     })
     .catch((error) => {
-      console.log("Error schedule tweet:", error);
+      console.log("Error schedule tweet (table tweet):", error);
     });
+  return result;
 }
 
 async function updateCheckpoint(id, lastImageId, lastPostedDate) {
@@ -239,6 +249,9 @@ async function scheduleTweet(startDateString, endDateString) {
   const tweetsNeeded = countTweetsNeeded(startDate, endDate);
   let successCount = 0;
 
+  let endScheduleDate = endDate;
+  endScheduleDate.setHours(endScheduleDate.getHours() + 1);
+
   for (let i = 0; i < tweetsNeeded; i++) {
     const poster = await getNextPoster(lastImageId);
     if (!poster) {
@@ -248,7 +261,7 @@ async function scheduleTweet(startDateString, endDateString) {
       continue;
     }
     const schedule = getSchedule(lastPostedDate, startDate);
-    if (schedule > endDate) {
+    if (schedule > endScheduleDate) {
       break;
     }
     const caption = getCaption(poster);
