@@ -62,6 +62,11 @@ function postTweet(imagePaths, caption) {
 
 /* Post a Tweet. */
 router.post('/', async function (req, res, next) {
+    if(!req.body.images || req.body.images.length == 0) {
+        res.send('please insert image!');
+        return;
+    }
+
     let imagePaths = [];
     for (let i = 0; i < req.body.images.length; i++) {
         const imagePath = 'posted_images/' + Date.now() + '.jpg';
