@@ -18,8 +18,7 @@ CREATE TABLE captions (
 INSERT INTO
     captions (caption_text)
 VALUES
-    ('caption 0001'),
-    ('caption 0002');
+    ('Perusahaan [Nama Perusahaan] sedang membuka lowongan kerja untuk posisi [Pekerjaan]');
 
 CREATE TABLE posters (
     poster_id text PRIMARY KEY,

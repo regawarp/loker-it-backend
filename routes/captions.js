@@ -10,7 +10,7 @@ router.get('/', function (req, res, next) {
     .then(data => {
       res.send(data);
     })
-    .catch(ferror => {
+    .catch(error => {
       console.log('Error :', error);
       res.send('failed!');
     });
