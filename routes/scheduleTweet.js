@@ -267,9 +267,7 @@ async function updateCheckpoint(id, lastImageId, lastPostedDate) {
     "tweets_checkpoint"
   );
   db.none(query)
-    .then(() => {
-      console.log("Update checkpoint success");
-    })
+    .then(() => null)
     .catch((error) => {
       console.log("Error updating checkpoint:", error);
     });
@@ -318,12 +316,12 @@ async function scheduleTweet(startDateString, endDateString) {
       }
       let successChunk = 0;
       const chunkSize = 4;
-      for (let i = 0; i < posters.length; i += chunkSize) {
-        schedule.setMinutes(schedule.getMinutes() + i);
-        const chunkPosters = posters.slice(i, i + chunkSize);
+      for (let j = 0; j < posters.length; j += chunkSize) {
+        schedule.setMinutes(schedule.getMinutes() + j);
+        const chunkPosters = posters.slice(j, j + chunkSize);
         const caption = getCaption(posters, true);
         let baseDate = new Date(schedule.getTime());
-        baseDate.setHours(schedule.getHours(), i, 0); 
+        baseDate.setHours(schedule.getHours(), j, 0);
         const tweet = await db
           .oneOrNone(
             `insert into tweets(tweet_caption_text, tweet_scheduled_date, tweet_base_schedule_date) 
@@ -334,16 +332,22 @@ async function scheduleTweet(startDateString, endDateString) {
           .catch((error) => {
             console.log("Error schedule tweet (table tweet):", error);
           });
-        if (!tweet) continue;
+        if (!tweet) {
+          if (i + 1 < tweetsNeeded) {
+            startScheduleDate = new Date(schedule.getTime());
+            startScheduleDate.setHours(schedule.getHours() + 1);
+          }
+          continue;
+        }
 
-        for (let j = 0; j < chunkPosters.length; j++) {
-          if (!isPosterValid(chunkPosters[j])) {
+        for (let k = 0; k < chunkPosters.length; k++) {
+          if (!isPosterValid(chunkPosters[k])) {
             continue;
           }
           const result = await db
             .none(
               "UPDATE posters SET poster_tweet_id = $1 WHERE poster_id = $2",
-              [tweet?.tweet_id, chunkPosters[j]?.poster_id]
+              [tweet?.tweet_id, chunkPosters[k]?.poster_id]
             )
             .then(() => {
               return "success";
@@ -360,7 +364,10 @@ async function scheduleTweet(startDateString, endDateString) {
         lastImageId = posters[posters.length - 1].poster_id;
         successCount++;
       }
-      startScheduleDate.setHours(schedule.getHours() + 1);
+      if (i + 1 < tweetsNeeded) {
+        startScheduleDate = new Date(schedule.getTime());
+        startScheduleDate.setHours(schedule.getHours() + 1);
+      }
     } else {
       if (!isPosterValid(poster)) {
         continue;
@@ -383,13 +390,12 @@ async function scheduleTweet(startDateString, endDateString) {
         lastImageId = poster.poster_id;
         successCount++;
       }
-      startScheduleDate.setHours(schedule.getHours() + 1);
+      if (i + 1 < tweetsNeeded) {
+        startScheduleDate = new Date(schedule.getTime());
+        startScheduleDate.setHours(schedule.getHours() + 1);
+      }
     }
     poster = null;
-  }
-
-  if (successCount > 0) {
-    startScheduleDate.setHours(startScheduleDate.getHours() - 1);
   }
 
   await updateCheckpoint(
@@ -400,9 +406,7 @@ async function scheduleTweet(startDateString, endDateString) {
 
   return {
     message:
-      successCount > 0
-        ? "schedule tweet success"
-        : "schedule tweet failed",
+      successCount > 0 ? "schedule tweet success" : "schedule tweet failed",
     successCount: successCount,
     tweetsNeeded: tweetsNeeded,
     lastPostedDate: startScheduleDate,
