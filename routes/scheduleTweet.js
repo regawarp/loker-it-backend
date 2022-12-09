@@ -3,6 +3,7 @@ const pgp = require("pg-promise")();
 const db = require("../utility/postgres");
 var router = express.Router();
 const { differenceInCalendarDays } = require("date-fns");
+const { ScheduledTweets } = require("../utility/scheduledTweets");
 
 const POST_PER_DAY = 3;
 
@@ -364,6 +365,12 @@ async function scheduleTweet(startDateString, endDateString) {
 router.post("/", async function (req, res, next) {
   const result = await scheduleTweet(req.body.startDate, req.body.endDate);
   res.send(result);
+});
+
+/* Post a Tweet Schedule. */
+router.get("/", async function (req, res, next) {
+  const scheduledTweets = await ScheduledTweets.getScheduledTweets();
+  res.send(scheduledTweets);
 });
 
 module.exports = router;
