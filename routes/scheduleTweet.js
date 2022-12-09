@@ -2,7 +2,7 @@ var express = require("express");
 const pgp = require("pg-promise")();
 const db = require("../utility/postgres");
 var router = express.Router();
-const { differenceInCalendarDays } = require("date-fns");
+const { differenceInCalendarDays, differenceInMinutes } = require("date-fns");
 const { ScheduledTweets } = require("../utility/scheduledTweets");
 
 const POST_PER_DAY = 3;
@@ -191,6 +191,40 @@ function getSchedule(lastPostedDate, startDate) {
   return startDate;
 }
 
+function getScheduleFromStartDate(startDate) {
+  let times = [];
+  if (POST_PER_DAY === 3) {
+    times = [8, 12, 17];
+  } else if (POST_PER_DAY === 4) {
+    times = [8, 12, 16, 18];
+  }
+  if (times.length === 0) {
+    return null;
+  }
+  const closestHour = times.find((time) => {
+    let currentDate = new Date(startDate.getTime());
+    currentDate.setHours(time, 0, 0);
+    const diff = differenceInMinutes(currentDate, startDate);
+    return diff >= 0;
+  });
+  let schedule = new Date(startDate.getTime());
+  if (!closestHour) {
+    schedule.setDate(schedule.getDate() + 1);
+    schedule.setHours(
+      times[0],
+      randomIntFromInterval(1, 10),
+      randomIntFromInterval(1, 10)
+    );
+  } else {
+    schedule.setHours(
+      closestHour,
+      randomIntFromInterval(1, 10),
+      randomIntFromInterval(1, 10)
+    );
+  }
+  return schedule;
+}
+
 function getCaption(poster, group = false) {
   return "sample caption";
 }
@@ -265,19 +299,21 @@ async function scheduleTweet(startDateString, endDateString) {
   const tweetsNeeded = countTweetsNeeded(startDate, endDate);
   let successCount = 0;
 
-  let endScheduleDate = endDate;
+  let endScheduleDate = new Date(endDate.getTime());
   endScheduleDate.setHours(endScheduleDate.getHours() + 1);
 
   let poster;
   for (let i = 0; i < tweetsNeeded; i++) {
     poster = await getNextPoster(lastImageId);
     if (!poster) {
+      console.log("Poster not found");
       break;
     }
     if (poster.poster_group) {
       const posters = await getPostersWithSameGroup(poster.poster_group);
       let schedule = getSchedule(lastPostedDate, startDate);
       if (schedule > endScheduleDate) {
+        console.log("Reached the end of schedule");
         break;
       }
       let successChunk = 0;
@@ -317,7 +353,7 @@ async function scheduleTweet(startDateString, endDateString) {
         }
       }
       if (successChunk === posters.length) {
-        lastPostedDate = schedule;
+        lastPostedDate = new Date(schedule.getTime());
         lastImageId = posters[posters.length - 1].poster_id;
         successCount++;
       }
@@ -327,6 +363,7 @@ async function scheduleTweet(startDateString, endDateString) {
       }
       const schedule = getSchedule(lastPostedDate, startDate);
       if (schedule > endScheduleDate) {
+        console.log("Reached the end of schedule");
         break;
       }
       const caption = getCaption(poster);
@@ -336,7 +373,7 @@ async function scheduleTweet(startDateString, endDateString) {
         schedule
       );
       if (result === "success") {
-        lastPostedDate = schedule;
+        lastPostedDate = new Date(schedule.getTime());
         lastImageId = poster.poster_id;
         successCount++;
       }
