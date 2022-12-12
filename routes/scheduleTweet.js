@@ -435,4 +435,10 @@ router.put("/", async function (req, res, next) {
   res.send(result);
 });
 
+/* Delete a Tweet Schedule. */
+router.delete("/", async function (req, res, next) {
+  const result = await ScheduledTweets.deleteScheduledTweet(req.body.id);
+  res.send(result);
+});
+
 module.exports = router;
