@@ -44,6 +44,7 @@ CREATE TABLE tweets (
     tweet_id uuid DEFAULT uuid_generate_v4(),
     tweet_caption_text text NOT NULL,
     tweet_scheduled_date timestamptz not null,
+    tweet_base_schedule_date timestamptz not null,
     tweet_created_date timestamptz not null default now(),
     tweet_status int4 not null default 0,
     constraint pk_tweets primary key (tweet_id)

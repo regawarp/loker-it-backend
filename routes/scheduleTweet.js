@@ -419,10 +419,20 @@ router.post("/", async function (req, res, next) {
   res.send(result);
 });
 
-/* Post a Tweet Schedule. */
+/* Get all Tweet Schedules. */
 router.get("/", async function (req, res, next) {
   const scheduledTweets = await ScheduledTweets.getScheduledTweets();
   res.send(scheduledTweets);
+});
+
+/* Update a Tweet Schedule. */
+router.put("/", async function (req, res, next) {
+  const result = await ScheduledTweets.updateScheduledTweet(
+    req.body.id,
+    req.body.caption,
+    req.body.posterIds
+  );
+  res.send(result);
 });
 
 module.exports = router;
