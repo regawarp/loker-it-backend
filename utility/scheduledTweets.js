@@ -27,6 +27,7 @@ async function getScheduledTweets(page = 1, pageSize = 5) {
     tweet_posters: tweet?.tweet_posters?.map((poster) => ({
       ...poster,
       poster_image_path: poster?.poster_image_path?.replace("./public", ""),
+      filename: poster?.poster_image_path?.replace(new RegExp("[./a-zA-Z0-9]+/", "g"), ""),
     })),
   }));
 }
