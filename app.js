@@ -13,6 +13,8 @@ var scheduleTweetRouter = require('./routes/scheduleTweet');
 var downloadPosterRouter = require('./routes/downloadPosterRouter');
 var listPosterRouter = require('./routes/listPosterRouter');
 
+var runScheduler = require('./utility/scheduler');
+
 var app = express();
 
 // view engine setup
@@ -53,5 +55,7 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
+
+runScheduler();
 
 module.exports = app;
