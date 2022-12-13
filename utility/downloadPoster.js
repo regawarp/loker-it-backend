@@ -6,7 +6,8 @@ const fs = require("fs-extra");
 const pgp = require("pg-promise")({
   capSQL: true, // capitalize all generated SQL
 });
-const db = require("../utility/postgres");
+const db = require("./postgres");
+var { hashImage } = require("./hashImage");
 
 require("dotenv").config();
 
@@ -14,23 +15,24 @@ const apiId = parseInt(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 let session;
 try {
-  session = readFileSync(`./session/${process.env.TELEGRAM_SESSION_NAME}.session`, {
-    encoding: "utf8",
-    flag: "r",
-  });
+  session = readFileSync(
+    `./session/${process.env.TELEGRAM_SESSION_NAME}.session`,
+    {
+      encoding: "utf8",
+      flag: "r",
+    }
+  );
 } catch (e) {
   console.log(e?.message);
 }
 const stringSession = new StringSession(session);
 
-function hashCode(str) {
-  let hash = 0;
-  for (let i = 0, len = str.length; i < len; i++) {
-    let chr = str.charCodeAt(i);
-    hash = (hash << 5) - hash + chr;
-    hash |= 0; // Convert to 32bit integer
+async function getHashImage(buffer) {
+  try {
+    return await hashImage({ data: buffer });
+  } catch (err) {
+    return null;
   }
-  return hash;
 }
 
 async function insertPosterToDB(posters) {
@@ -42,7 +44,8 @@ async function insertPosterToDB(posters) {
     { table: "posters" }
   );
   const values = posters;
-  const query = pgp.helpers.insert(values, cs) + " ON CONFLICT(poster_id) DO NOTHING";
+  const query =
+    pgp.helpers.insert(values, cs) + " ON CONFLICT(poster_id) DO NOTHING";
 
   db.none(query)
     .then(() => {
@@ -72,8 +75,10 @@ async function downloadPoster(startDateString, endDateString) {
   }
 
   if (!session) {
-    fs.outputFile(`./session/${process.env.TELEGRAM_SESSION_NAME}.session`, client.session.save(), (err) =>
-      err ? console.log(err) : ""
+    fs.outputFile(
+      `./session/${process.env.TELEGRAM_SESSION_NAME}.session`,
+      client.session.save(),
+      (err) => (err ? console.log(err) : "")
     );
   }
 
@@ -108,18 +113,21 @@ async function downloadPoster(startDateString, endDateString) {
         } else {
           filePath = `${BASE_PATH}/photo_${message.media.photo.id}.jpg`;
         }
-        fs.outputFile(filePath, buffer, (err) =>
-          err
-            ? console.log(err)
-            : posters.push({
-                poster_id: hashCode(filePath),
-                poster_image_path: filePath,
-                poster_group: message?.groupedId?.toString(),
-                poster_message_date: new Date(
-                  message.date * 1000 + seconds * 1000
-                ).toISOString(),
-              })
-        );
+        const id = await getHashImage(buffer);
+        if (id) {
+          fs.outputFile(filePath, buffer, (err) =>
+            err
+              ? console.log(err)
+              : posters.push({
+                  poster_id: id,
+                  poster_image_path: filePath,
+                  poster_group: message?.groupedId?.toString(),
+                  poster_message_date: new Date(
+                    message.date * 1000 + seconds * 1000
+                  ).toISOString(),
+                })
+          );
+        }
       }
       seconds++;
     }
