@@ -12,7 +12,6 @@ var tweetsRouter = require('./routes/tweets');
 var scheduleTweetRouter = require('./routes/scheduleTweet');
 var downloadPosterRouter = require('./routes/downloadPosterRouter');
 var listPosterRouter = require('./routes/listPosterRouter');
-var imageHashRouter = require('./routes/imageHash');
 
 var runScheduler = require('./utility/scheduler');
 
