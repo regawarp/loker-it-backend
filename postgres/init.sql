@@ -53,10 +53,10 @@ create unique index tweets_pk on tweets (
     tweet_id
 );
 INSERT INTO
-    tweets (tweet_caption_text, tweet_scheduled_date)
+    tweets (tweet_caption_text, tweet_scheduled_date, tweet_base_schedule_date)
 VALUES
-    ('caption 0001', '2022-12-01T07:16:09.117Z'),
-    ('caption 0002', '2022-12-01T07:16:09.117Z');
+    ('caption 0001', '2022-12-01T07:16:09.117Z', '2022-12-01T07:00:00.007Z'),
+    ('caption 0002', '2022-12-01T07:16:09.117Z', '2022-12-01T07:00:00.007Z');
 
 alter table posters
     add constraint fk_posters_relations_tweets foreign key (poster_tweet_id)

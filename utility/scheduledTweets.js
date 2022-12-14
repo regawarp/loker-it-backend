@@ -4,7 +4,29 @@ const ScheduledTweets = {
   getScheduledTweets,
   updateScheduledTweet,
   deleteScheduledTweet,
+  updateScheduledTweetStatus,
+  updateScheduledPosterFailed,
 };
+
+async function updateScheduledTweetStatus(id, status) {
+  const query = `update tweets set tweet_status = $1 where tweet_id = $2;`
+
+  const res = await db
+    .any(query, [status, id])
+    .then((result) => result)
+    .catch((error) => error);
+  return res;
+}
+
+async function updateScheduledPosterFailed(tweet_id) {
+  const query = `update posters set poster_tweet_id = NULL where poster_tweet_id = $1;`
+
+  const res = await db
+    .any(query, [tweet_id])
+    .then((result) => result)
+    .catch((error) => error);
+  return res;
+}
 
 async function getScheduledTweets(page = 1, pageSize = 5) {
   const query = `select tweet_id, tweet_caption_text, tweet_scheduled_date, 
