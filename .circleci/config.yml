@@ -3,10 +3,12 @@
 # Check https://circleci.com/docs/2.0/language-javascript/ for more details
 #
 version: 2
-orbs:
-  node: circleci/node@x.y
 jobs:
   build:
+    environment:
+       SERVER_IP_ADDRESS: harmy.dev
+       DOKKU_APP: lokeritdemo
+       TRAVIS: "false"
     docker:
       # specify the version you desire here
       - image: circleci/node:16.13.1
@@ -35,5 +37,9 @@ jobs:
             - node_modules
           key: v1-dependencies-{{ checksum "package.json" }}
 
-      # run tests!
-      - run: npm test
+      # Use BASH instead of DASH! see: https://ubuntuforums.org/showthread.php?t=1932504
+      - run: ls -al /bin/sh && sudo rm /bin/sh && sudo ln -s /bin/bash /bin/sh && ls -al /bin/sh
+      # test shell script:
+      - run: echo ${SERVER_IP_ADDRESS}
+      - run: echo -e "Host $SERVER_IP_ADDRESS\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+      - run: sh bin/deploy.sh
