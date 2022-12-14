@@ -26,6 +26,4 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm install
-    - run: pm2 stop loker-it-backend
-    - run: pm2 delete loker-it-backend
-    - run: npm test
+    - run: npm start
