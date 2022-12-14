@@ -44,14 +44,29 @@ async function runScheduler() {
 
     const timeNow = new Date();
     const timeSchedule = new Date(tweet_scheduled_date);
+    // const timeSchedule = new Date(timeNow.getTime() + (i + 1) * 10000); // testing purpose
     if (timeNow > timeSchedule) continue;
-    console.log('tweet', tweet_id, 'will be posted at', timeSchedule.toString());
 
     const job = schedule.scheduleJob(tweet_id, timeSchedule, async function () {
       const error = await tweets.postTweetFromImageUrl(imageUrl, tweet_caption_text);
-      if (!error) console.log('tweet', tweet_id, 'posted!');
-      else console.log('tweet', tweet_id, 'not posted!');
+      if (!error) {
+        console.log('tweet', tweet_id, 'posted!');
+        const res = await ScheduledTweets.updateScheduledTweetStatus(tweet_id, 2);
+        // console.log(res);
+      }
+      else {
+        console.log('tweet', tweet_id, 'not posted!');
+        const res1 = await ScheduledTweets.updateScheduledTweetStatus(tweet_id, 3);
+        // console.log(res1);
+        const res2 = await ScheduledTweets.updateScheduledPosterFailed(tweet_id);
+        // console.log(res2);
+      }
     });
+    if (job) {
+      console.log('tweet', tweet_id, 'will be posted at', timeSchedule.toString());
+      const res = await ScheduledTweets.updateScheduledTweetStatus(tweet_id, 1);
+      // console.log(res);
+    }
   }
 }
 
