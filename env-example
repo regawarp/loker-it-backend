@@ -1,0 +1,17 @@
+TELEGRAM_API_ID=[replace this]
+TELEGRAM_API_HASH="[replace this]"
+TELEGRAM_SESSION_NAME='name'
+TELEGRAM_GROUP_CHAT_ID=-123
+PORT=8081
+BE_URL=http://localhost:8081
+
+TWITTER_CONSUMER_KEY = '[replace this]'
+TWITTER_CONSUMER_SECRET = '[replace this]'
+TWITTER_ACCESS_TOKEN_KEY = '[replace this]'
+TWITTER_ACCESS_TOKEN_SECRET = '[replace this]'
+
+DB_USER='[replace this]'
+DB_PASSWORD='[replace this]'
+DB_HOST='[replace this]'
+DB_PORT='[replace this]'
+DB_NAME='[replace this]'

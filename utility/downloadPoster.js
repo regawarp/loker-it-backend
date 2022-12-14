@@ -1,0 +1,142 @@
+const { TelegramClient } = require("telegram");
+const { StringSession } = require("telegram/sessions");
+const { readFileSync } = require("fs");
+const input = require("input");
+const fs = require("fs-extra");
+const pgp = require("pg-promise")({
+  capSQL: true, // capitalize all generated SQL
+});
+const db = require("./postgres");
+var { hashImage } = require("./hashImage");
+
+require("dotenv").config();
+
+const apiId = parseInt(process.env.TELEGRAM_API_ID);
+const apiHash = process.env.TELEGRAM_API_HASH;
+let session;
+try {
+  session = readFileSync(
+    `./session/${process.env.TELEGRAM_SESSION_NAME}.session`,
+    {
+      encoding: "utf8",
+      flag: "r",
+    }
+  );
+} catch (e) {
+  console.log(e?.message);
+}
+const stringSession = new StringSession(session);
+
+async function getHashImage(buffer) {
+  try {
+    return await hashImage({ data: buffer });
+  } catch (err) {
+    return null;
+  }
+}
+
+async function insertPosterToDB(posters) {
+  if (posters?.length === 0) {
+    return;
+  }
+  const cs = new pgp.helpers.ColumnSet(
+    ["poster_id", "poster_image_path", "poster_group", "poster_message_date"],
+    { table: "posters" }
+  );
+  const values = posters;
+  const query =
+    pgp.helpers.insert(values, cs) + " ON CONFLICT(poster_id) DO NOTHING";
+
+  db.none(query)
+    .then(() => {
+      console.log("Insert posters to DB success");
+    })
+    .catch((error) => {
+      console.log("Error inserting posters to DB:", error);
+    });
+}
+
+async function downloadPoster(startDateString, endDateString) {
+  const client = new TelegramClient(stringSession, apiId, apiHash, {
+    connectionRetries: 5,
+  });
+  try {
+    await client.start({
+      phoneNumber: async () => await input.text("Please enter your number: "),
+      password: async () => await input.text("Please enter your password: "),
+      phoneCode: async () =>
+        await input.text("Please enter the code you received: "),
+      onError: (err) => {
+        throw err;
+      },
+    });
+  } catch (err) {
+    return err;
+  }
+
+  if (!session) {
+    fs.outputFile(
+      `./session/${process.env.TELEGRAM_SESSION_NAME}.session`,
+      client.session.save(),
+      (err) => (err ? console.log(err) : "")
+    );
+  }
+
+  const startDate =
+    new Date(startDateString).setHours(0, 0, 0, 0).valueOf() / 1000;
+  const endDateTemp = new Date(endDateString);
+  const endDate =
+    new Date(endDateTemp.setDate(endDateTemp.getDate() + 1))
+      .setHours(0, 0, 0, 0)
+      .valueOf() / 1000;
+
+  const BASE_PATH = "./public/media";
+  const posters = [];
+  let seconds = 0;
+
+  try {
+    for await (const message of client.iterMessages(
+      parseInt(process.env.TELEGRAM_GROUP_CHAT_ID),
+      {
+        reverse: true,
+        offsetDate: startDate,
+      }
+    )) {
+      if (message?.date > endDate) {
+        break;
+      }
+      if (message?.media?.photo) {
+        const buffer = await client.downloadMedia(message.media, {});
+        let filePath;
+        if (message.groupedId) {
+          filePath = `${BASE_PATH}/${message.groupedId}/photo_${message.media.photo.id}.jpg`;
+        } else {
+          filePath = `${BASE_PATH}/photo_${message.media.photo.id}.jpg`;
+        }
+        const id = await getHashImage(buffer);
+        if (id) {
+          fs.outputFile(filePath, buffer, (err) =>
+            err
+              ? console.log(err)
+              : posters.push({
+                  poster_id: id,
+                  poster_image_path: filePath,
+                  poster_group: message?.groupedId?.toString(),
+                  poster_message_date: new Date(
+                    message.date * 1000 + seconds * 1000
+                  ).toISOString(),
+                })
+          );
+        }
+      }
+      seconds++;
+    }
+    insertPosterToDB(posters);
+  } catch (err) {
+    return err;
+  }
+
+  return "download poster success";
+}
+
+module.exports = downloadPoster;

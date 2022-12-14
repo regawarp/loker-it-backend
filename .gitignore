@@ -1,8 +1,9 @@
 .env
-*.session
 
-media
+session/**.session
+public/media
 telegram-image-downloader
+posted_images/**.jpg
 
 # Express JS
 node_modules
